@@ -1,7 +1,0 @@
-55,tennis
-357,association football
-360,volleyball
-368,basketball
-369,netball
-393,american football
-398,rugby
