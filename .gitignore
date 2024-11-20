@@ -1,7 +1,9 @@
-sports-1m-dataset
-runs
-checkpoints
-dataset
+sports-1m-dataset/
+runs/
+checkpoints/
+dataset/
+videos/
+*.pt
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

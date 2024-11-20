@@ -60,10 +60,10 @@ def main():
     print(f'Target labels: {target_labels}')
 
     train_input_path = os.path.join(os.getcwd(), 'sports-1m-dataset', 'original', 'train_partition.txt')
-    train_output_path = os.path.join(os.getcwd(), 'dataset', 'train', 'videos')
+    train_output_path = os.path.join(os.getcwd(), 'videos', 'train')
 
     test_input_path = os.path.join(os.getcwd(), 'sports-1m-dataset', 'original', 'test_partition.txt')
-    test_output_path = os.path.join(os.getcwd(), 'dataset', 'test', 'videos')
+    test_output_path = os.path.join(os.getcwd(), 'videos', 'test')
 
     parse_and_download(train_input_path, train_output_path, target_labels, num_videos=10)
     parse_and_download(test_input_path, test_output_path, target_labels, num_videos=2)
