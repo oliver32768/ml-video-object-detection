@@ -1,5 +1,6 @@
 import os
 import csv
+import json
 import glob
 import yt_dlp
 
@@ -33,25 +34,38 @@ def download_video(url, output_path):
 def get_label_indices(csv_file):
     with open(csv_file, 'r', newline='') as csvfile:
         csvreader = csv.reader(csvfile)
-        labels = {row[0] for row in csvreader if row}
+        labels = {int(row[0]) for row in csvreader if row}
     return labels
 
-def parse_and_download(input_path, output_path, target_labels, num_videos):
+def parse_and_download(input_path, output_path, target_labels, num_videos, max_length):
     num_downloaded = 0
 
     if not os.path.exists(output_path):
         os.makedirs(output_path)
 
     with open(input_path, 'r') as file:
-        for line in file:
-            url, _, labels_str = line.partition(' ')
-            labels = labels_str.strip().split(',')
-            
-            if target_labels.intersection(labels):
+        data = json.load(file)
+        split_path = input_path.split('\\')
+        print(f'Processing Sports-1M dataset file {split_path[-1]}')
+        
+        for item in data:
+            duration = item.get('duration', 0)
+            if duration > max_length: 
+                # only download videos <=(max_length)s in length
+                # partially doing this to save time and space, partially doing this because longer videos tend to be a lot less focused
+                # (e.g. many minutes of no frames containing sports balls)
+                continue
+
+            labels = item.get('label487', [])
+            labels_set = set(labels)
+
+            if target_labels.intersection(labels_set):
                 if num_downloaded >= num_videos:
                     break
-                output_file = str(num_downloaded) + '.mp4'
-                print(f'Downloading {url} (labels: {labels}) to {output_file}')
+                video_id = item.get('id')
+                url = f'https://youtube.com/watch?v={video_id}'
+                output_file = f'{num_downloaded}.mp4'
+                print(f'Downloading {duration}s video at {url} (labels: {labels}) to {output_file}')
                 dl_success = download_video(url, os.path.join(output_path, output_file))
                 num_downloaded += dl_success
 
@@ -59,14 +73,14 @@ def main():
     target_labels = get_label_indices('relevant-labels.csv')
     print(f'Target labels: {target_labels}')
 
-    train_input_path = os.path.join(os.getcwd(), 'sports-1m-dataset', 'original', 'train_partition.txt')
+    train_input_path = os.path.join(os.getcwd(), 'sports-1m-dataset', 'sports1m_train.json')
     train_output_path = os.path.join(os.getcwd(), 'videos', 'train')
 
-    test_input_path = os.path.join(os.getcwd(), 'sports-1m-dataset', 'original', 'test_partition.txt')
+    test_input_path = os.path.join(os.getcwd(), 'sports-1m-dataset', 'sports1m_test.json')
     test_output_path = os.path.join(os.getcwd(), 'videos', 'test')
 
-    parse_and_download(train_input_path, train_output_path, target_labels, num_videos=10)
-    parse_and_download(test_input_path, test_output_path, target_labels, num_videos=2)
+    parse_and_download(train_input_path, train_output_path, target_labels, num_videos=10, max_length=30)
+    parse_and_download(test_input_path, test_output_path, target_labels, num_videos=2, max_length=30)
 
 if __name__ == '__main__':
     main()
