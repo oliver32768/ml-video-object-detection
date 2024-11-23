@@ -76,11 +76,11 @@ def main():
     train_input_path = os.path.join(os.getcwd(), 'sports-1m-dataset', 'sports1m_train.json')
     train_output_path = os.path.join(os.getcwd(), 'videos', 'train')
 
-    test_input_path = os.path.join(os.getcwd(), 'sports-1m-dataset', 'sports1m_test.json')
-    test_output_path = os.path.join(os.getcwd(), 'videos', 'test')
+    val_input_path = os.path.join(os.getcwd(), 'sports-1m-dataset', 'sports1m_test.json')
+    val_output_path = os.path.join(os.getcwd(), 'videos', 'val')
 
     parse_and_download(train_input_path, train_output_path, target_labels, num_videos=10, max_length=30)
-    parse_and_download(test_input_path, test_output_path, target_labels, num_videos=2, max_length=30)
+    parse_and_download(val_input_path, val_output_path, target_labels, num_videos=2, max_length=30)
 
 if __name__ == '__main__':
     main()

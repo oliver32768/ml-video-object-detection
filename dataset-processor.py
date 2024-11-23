@@ -2,6 +2,7 @@ import os
 import argparse
 from ultralytics import YOLO
 import cv2
+import torch
 
 def parse_cli_args():
     parser = argparse.ArgumentParser()
@@ -18,7 +19,7 @@ def gen_pseudo_annotations(model, video_dir, label_dir):
         exit()
     os.makedirs(label_dir, exist_ok=True)  # contains JPEGs and labels (TXTs)
 
-    THRESH = 0.1
+    THRESH = 0.05
     SPORTSBALL_IDX = 32
 
     for file in os.listdir(video_dir):
@@ -37,11 +38,11 @@ def gen_pseudo_annotations(model, video_dir, label_dir):
             print(f'Processing frame {frame_idx} in file {filename_ext_removed}')
 
             # dump RGB frame
-            image_path = os.path.join(label_dir, f"{filename_ext_removed}-{frame_idx:05d}.png")
+            image_path = os.path.join(label_dir, f"{filename_ext_removed}-{frame_idx}.png")
             H,W = frame.shape[:2]
             cv2.imwrite(image_path, frame)
 
-            label_path = os.path.join(label_dir, f"{filename_ext_removed}-{frame_idx:05d}.txt")
+            label_path = os.path.join(label_dir, f"{filename_ext_removed}-{frame_idx}.txt")
 
             results = model.predict(frame, imgsz=640) # directly use the YOLO predict method
 
@@ -63,7 +64,11 @@ def gen_pseudo_annotations(model, video_dir, label_dir):
 
 def main():
     args = parse_cli_args()
-    gen_pseudo_annotations(YOLO(args.model), args.video_dir, args.label_dir)
+
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    model = YOLO(args.model).to(device)
+
+    gen_pseudo_annotations(model, args.video_dir, args.label_dir)
 
 if __name__ == '__main__':
     main()
