@@ -1,74 +1,141 @@
-import os
-import argparse
-from ultralytics import YOLO
 import cv2
+import json
 import torch
+import os
+from pathlib import Path
+from torchvision.transforms import functional as F
+from torchvision.models.detection import fasterrcnn_resnet50_fpn, FasterRCNN_ResNet50_FPN_Weights
+from torchvision.models.detection.faster_rcnn import FastRCNNPredictor
+from tqdm import tqdm
 
-def parse_cli_args():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--model", help="Path to model checkpoint used for generating labels", required=True)
-    parser.add_argument("--video-dir", help="Path to directory containing videos to label", required=True)
-    parser.add_argument("--label-dir", help="Path to directory where RGB frames and their labels should be saved", required=True)
-    return parser.parse_args()
+class DatasetProcessor:
+    def __init__(self, video_dir, dataset_dir, custom_weights):
+        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-def gen_pseudo_annotations(model, video_dir, label_dir):
-    """Generates pseudo annotations from scratch; this will dump frames from the input videos and generate pseudo-annotations using CLI specified model checkpoint"""
-    
-    if not os.path.isdir(video_dir):
-        print(f"Video directory specified doesn't exist\n({video_dir})")
-        exit()
-    os.makedirs(label_dir, exist_ok=True)  # contains JPEGs and labels (TXTs)
+        if custom_weights is not None:
+            # The first pass is done using v1, which trains a v2, which is then used for the future passes
+            print(f'Loading FasterRCNN v2 with custom weights: {os.fsdecode(custom_weights)}')
+            self.model = fasterrcnn_resnet50_fpn(weights=None)
 
-    THRESH = 0.05
-    SPORTSBALL_IDX = 32
+            in_features = self.model.roi_heads.box_predictor.cls_score.in_features
+            num_classes = 2 # Background + 1 class
+            self.model.roi_heads.box_predictor = FastRCNNPredictor(in_features, num_classes)
 
-    for file in os.listdir(video_dir):
-        filename = os.fsdecode(file)
+            ckpt = torch.load(custom_weights)
+            self.model.load_state_dict(ckpt['model_state_dict'])
+            self.model = self.model.to(self.device).eval()
 
-        filename_ext_removed = filename.split('.')[0]
-        print(f'Processing file {filename_ext_removed}')
-        cap = cv2.VideoCapture(os.path.join(video_dir, filename))
+            self.ball_class_ids = [1] # I change the index to just be 1 during finetuning
+        else:
+            # use v1 for first pseudo-labelling pass since it produces a lot less false positives (and I only train on labelled frames)
+            print(f'Loading FasterRCNN v1 with official PyTorch pre-trained weights')
+            self.model = fasterrcnn_resnet50_fpn(weights=FasterRCNN_ResNet50_FPN_Weights.DEFAULT).to(self.device).eval()
+
+            self.ball_class_ids = [37] # Have to use the COCO index
+        
+        self.confidence_threshold = 0.7
+
+        self.images = []
+        self.annotations = []
+        self.categories = [{'id': 1, 'name': 'sports ball'}]
+
+        self.img_id = 0
+
+        self.video_dir = video_dir
+        self.dataset_dir = dataset_dir
+        self.images_dir = os.path.join(self.dataset_dir, 'images')
+        self.vis_dir = os.path.join(self.dataset_dir, 'visualisations')
+        os.makedirs(self.dataset_dir, exist_ok=True)
+        os.makedirs(self.images_dir, exist_ok=True)
+        os.makedirs(self.vis_dir, exist_ok=True)
+        print(f'Results will be saved to {self.dataset_dir}')
+
+    def process_frame(self, frame):
+        image = F.to_tensor(frame)
+        image = image.to(self.device)
+
+        predictions = self.model([image])[0]
+
+        detections = []
+        for box, label, score in zip(predictions['boxes'], predictions['labels'], predictions['scores']):
+            print(label)
+            if label.item() in self.ball_class_ids and score.item() > self.confidence_threshold:
+                detection = {
+                    'image_id': self.img_id,
+                    'bbox': box.cpu().numpy().tolist(),
+                    'category_id': 1
+                }
+                detections.append(detection)
+                self.annotations.append(detection)
+
+        return detections
+
+    def process_video(self, video_path):
+        video_name = Path(video_path).stem
+
+        cap = cv2.VideoCapture(video_path)
+        total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
         frame_idx = 0
 
-        while True:
-            ret, frame = cap.read()
+        with torch.no_grad():
+            with tqdm(total=total_frames, desc=f"Processing {video_name}") as pbar:
+                while cap.isOpened():
+                    ret, frame = cap.read()
+                    if not ret:
+                        break
+                    frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                    H, W = frame_rgb.shape[:2]
+                    
+                    detections = self.process_frame(frame_rgb)
+                    
+                    if len(detections) > 0:
+                        frame_filename = f"{video_name}-{frame_idx:06d}.jpg"
+                        self.save_frame(frame, frame_filename, detections)
+                        self.images.append({
+                            'id': self.img_id,
+                            'file_name': frame_filename,
+                            'width': W,
+                            'height': H
+                        })
+                        self.img_id += 1
+                    
+                    frame_idx += 1
+                    pbar.update(1)
+        
+        cap.release()
 
-            if not ret:
-                break
-            print(f'Processing frame {frame_idx} in file {filename_ext_removed}')
+    def save_frame(self, frame, frame_filename, detections):
+        frame_path = os.path.join(self.images_dir, frame_filename)
+        cv2.imwrite(frame_path, frame)
 
-            # dump RGB frame
-            image_path = os.path.join(label_dir, f"{filename_ext_removed}-{frame_idx}.png")
-            H,W = frame.shape[:2]
-            cv2.imwrite(image_path, frame)
+        vis_path = os.path.join(self.vis_dir, frame_filename)
+        for detect in detections:
+            x1, y1, x2, y2 = map(int, detect['bbox'])
+            cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
+        cv2.imwrite(vis_path, frame)
+        
 
-            label_path = os.path.join(label_dir, f"{filename_ext_removed}-{frame_idx}.txt")
+    def process_video_folder(self):
+        video_paths = list(Path(self.video_dir).glob('*.mp4'))
 
-            results = model.predict(frame, imgsz=640) # directly use the YOLO predict method
+        for video_path in video_paths:
+            print(f"\nProcessing video: {video_path.name}")
 
-            for box in results[0].boxes:
-                cls = int(box.cls.item())
-                print(f'class {cls} @ {box.conf.item():.4f} conf.')
-                if cls == SPORTSBALL_IDX and box.conf > THRESH:
-                    x,y,w,h = box.xywh[0]
-                    x,w = x/W, w/W
-                    y,h = y/H, h/H
-                    with open(label_path, "w") as label_file:
-                        label_str = f'{cls} {x:.6f} {y:.6f} {w:.6f} {h:.6f}\n'
-                        print(f'Writing line to {label_path}: {label_str}')
-                        label_file.write(label_str)
-            
-            frame_idx += 1
+            self.process_video(str(video_path))
+
+        data = {
+            "images": datasetprocessor.images,
+            "annotations": datasetprocessor.annotations,
+            "categories": datasetprocessor.categories
+        }
+
+        with open(os.path.join(self.dataset_dir, "annotations.json"), "w") as json_file:
+            json.dump(data, json_file, indent=4)
+
+if __name__ == "__main__":
+    video_dir = os.path.join("videos", "train")
+    dataset_dir = os.path.join("ball_detection_dataset", "1")
+    weights = os.path.join("models", "checkpoint_epoch_1.pth")
     
-    cap.release()
-
-def main():
-    args = parse_cli_args()
-
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    model = YOLO(args.model).to(device)
-
-    gen_pseudo_annotations(model, args.video_dir, args.label_dir)
-
-if __name__ == '__main__':
-    main()
+    datasetprocessor = DatasetProcessor(video_dir, dataset_dir, weights)
+    datasetprocessor.process_video_folder()

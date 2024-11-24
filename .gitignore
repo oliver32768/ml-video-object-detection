@@ -4,6 +4,8 @@ checkpoints/
 dataset/
 videos/
 *.pt
+ball_detection_dataset/
+models/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

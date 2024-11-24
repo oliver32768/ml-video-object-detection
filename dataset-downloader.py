@@ -37,7 +37,7 @@ def get_label_indices(csv_file):
         labels = {int(row[0]) for row in csvreader if row}
     return labels
 
-def parse_and_download(input_path, output_path, target_labels, num_videos, max_length):
+def parse_and_download(input_path, output_path, target_labels, num_videos, max_length, min_height):
     num_downloaded = 0
 
     if not os.path.exists(output_path):
@@ -50,7 +50,8 @@ def parse_and_download(input_path, output_path, target_labels, num_videos, max_l
         
         for item in data:
             duration = item.get('duration', 0)
-            if duration > max_length: 
+            height = item.get('height', 0)
+            if duration > max_length or height < min_height: 
                 # only download videos <=(max_length)s in length
                 # partially doing this to save time and space, partially doing this because longer videos tend to be a lot less focused
                 # (e.g. many minutes of no frames containing sports balls)
@@ -79,8 +80,8 @@ def main():
     val_input_path = os.path.join(os.getcwd(), 'sports-1m-dataset', 'sports1m_test.json')
     val_output_path = os.path.join(os.getcwd(), 'videos', 'val')
 
-    parse_and_download(train_input_path, train_output_path, target_labels, num_videos=10, max_length=30)
-    parse_and_download(val_input_path, val_output_path, target_labels, num_videos=2, max_length=30)
+    parse_and_download(train_input_path, train_output_path, target_labels, num_videos=10, max_length=30, min_height=720)
+    parse_and_download(val_input_path, val_output_path, target_labels, num_videos=2, max_length=30, min_height=720)
 
 if __name__ == '__main__':
     main()
