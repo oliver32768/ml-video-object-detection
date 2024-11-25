@@ -13,7 +13,6 @@ class DatasetProcessor:
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
         if custom_weights is not None:
-            # The first pass is done using v1, which trains a v2, which is then used for the future passes
             print(f'Loading FasterRCNN v2 with custom weights: {os.fsdecode(custom_weights)}')
             self.model = fasterrcnn_resnet50_fpn(weights=None)
 
@@ -27,7 +26,6 @@ class DatasetProcessor:
 
             self.ball_class_ids = [1] # I change the index to just be 1 during finetuning
         else:
-            # use v1 for first pseudo-labelling pass since it produces a lot less false positives (and I only train on labelled frames)
             print(f'Loading FasterRCNN v1 with official PyTorch pre-trained weights')
             self.model = fasterrcnn_resnet50_fpn(weights=FasterRCNN_ResNet50_FPN_Weights.DEFAULT).to(self.device).eval()
 
@@ -58,7 +56,6 @@ class DatasetProcessor:
 
         detections = []
         for box, label, score in zip(predictions['boxes'], predictions['labels'], predictions['scores']):
-            print(label)
             if label.item() in self.ball_class_ids and score.item() > self.confidence_threshold:
                 detection = {
                     'image_id': self.img_id,
@@ -135,7 +132,7 @@ class DatasetProcessor:
 if __name__ == "__main__":
     video_dir = os.path.join("videos", "train")
     dataset_dir = os.path.join("ball_detection_dataset", "1")
-    weights = os.path.join("models", "checkpoint_epoch_1.pth")
+    weights = os.path.join("models", "checkpoint_epoch_5-v1.pth")
     
     datasetprocessor = DatasetProcessor(video_dir, dataset_dir, weights)
     datasetprocessor.process_video_folder()
