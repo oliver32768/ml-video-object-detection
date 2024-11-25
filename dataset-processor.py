@@ -7,6 +7,7 @@ from torchvision.transforms import functional as F
 from torchvision.models.detection import fasterrcnn_resnet50_fpn, FasterRCNN_ResNet50_FPN_Weights
 from torchvision.models.detection.faster_rcnn import FastRCNNPredictor
 from tqdm import tqdm
+import argparse
 
 class DatasetProcessor:
     def __init__(self, video_dir, dataset_dir, custom_weights):
@@ -22,12 +23,14 @@ class DatasetProcessor:
 
             ckpt = torch.load(custom_weights)
             self.model.load_state_dict(ckpt['model_state_dict'])
-            self.model = self.model.to(self.device).eval()
+            self.model = self.model.to(self.device)
+            self.model.eval()
 
             self.ball_class_ids = [1] # I change the index to just be 1 during finetuning
         else:
             print(f'Loading FasterRCNN v1 with official PyTorch pre-trained weights')
-            self.model = fasterrcnn_resnet50_fpn(weights=FasterRCNN_ResNet50_FPN_Weights.DEFAULT).to(self.device).eval()
+            self.model = fasterrcnn_resnet50_fpn(weights=FasterRCNN_ResNet50_FPN_Weights.DEFAULT).to(self.device)
+            self.model.eval()
 
             self.ball_class_ids = [37] # Have to use the COCO index
         
@@ -129,10 +132,18 @@ class DatasetProcessor:
         with open(os.path.join(self.dataset_dir, "annotations.json"), "w") as json_file:
             json.dump(data, json_file, indent=4)
 
+def parse_cli_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--video-dir", help="Path to directory containing source videos to be labelled by model", required=True)
+    parser.add_argument("--dataset-dir", help="Path to directory where labels, images and visualisations should be saved", required=True)
+    parser.add_argument("--weights", help="Path to model weights (FasterRCNN v1). Defaults to downloading pretrained weights")
+    return parser.parse_args()
+
 if __name__ == "__main__":
-    video_dir = os.path.join("videos", "train")
-    dataset_dir = os.path.join("ball_detection_dataset", "1")
-    weights = os.path.join("models", "checkpoint_epoch_5-v1.pth")
+    args = parse_cli_args()
+    video_dir = args.video_dir
+    dataset_dir = args.dataset_dir
+    weights = args.weights
     
     datasetprocessor = DatasetProcessor(video_dir, dataset_dir, weights)
     datasetprocessor.process_video_folder()

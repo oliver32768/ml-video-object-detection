@@ -75,7 +75,7 @@ class SportsballDataset(Dataset):
 
 def get_transform(train):
     if train:
-        # Add motion blur?
+        # TODO: Motion blur
         transform = A.Compose([
             A.RandomSizedBBoxSafeCrop(width=800, height=800),
             A.HorizontalFlip(p=0.5),
@@ -92,13 +92,29 @@ def get_transform(train):
         ], bbox_params=A.BboxParams(format='pascal_voc', label_fields=['labels']))
     return transform
 
-def get_model(num_classes):
-    # Pretrained model (TODO: argparse to take ckpt and continue a previous training run)
-    model = fasterrcnn_resnet50_fpn(weights=FasterRCNN_ResNet50_FPN_Weights.DEFAULT)
+def get_model(num_classes, freeze_backbone=True, tune_rpn=False, pretrained=True):
+    # pretrained fasterrcnn (TODO: loading from ckpt)
+    weights = FasterRCNN_ResNet50_FPN_Weights.DEFAULT if pretrained else None
+    model = fasterrcnn_resnet50_fpn(weights=weights)
     
-    # Replace the classifier with a new one for our number of classes
+    # freeze resnet backbone
+    if freeze_backbone:
+        for param in model.backbone.parameters():
+            param.requires_grad = False
+            
+    # freeze region proposal network
+    if not tune_rpn:
+        for param in model.rpn.parameters():
+            param.requires_grad = False
+    
+    # replace classifier to only classify background and sports balls
     in_features = model.roi_heads.box_predictor.cls_score.in_features
     model.roi_heads.box_predictor = FastRCNNPredictor(in_features, num_classes)
+    
+    # configure anchors to prefer near-square shapes for sports balls
+    # AFAIK the model is free to unlearn this, so I should probably add a strict cutoff for extremely low likelihood shapes
+    model.rpn.anchor_generator.sizes = ((32, 64, 128, 256),) * 5
+    model.rpn.anchor_generator.aspect_ratios = ((0.8, 1.0, 1.2),) * 5
     
     return model
 
@@ -130,8 +146,8 @@ def main():
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     
     train_dataset = SportsballDataset(
-        json_file=os.path.join('ball_detection_dataset', '0', 'annotations.json'),
-        img_dir=os.path.join('ball_detection_dataset', '0', 'images'),
+        json_file=os.path.join('ball_detection_dataset', 'train', '0', 'annotations.json'),
+        img_dir=os.path.join('ball_detection_dataset', 'train', '0', 'images'),
         transform=get_transform(train=True)
     )
     
@@ -142,17 +158,35 @@ def main():
         collate_fn=lambda x: tuple(zip(*x))
     )
     
+    freeze_backbone=True
     num_classes = len(train_dataset.coco['categories']) + 1
-    model = get_model(num_classes)
+    model = get_model(
+        num_classes=num_classes,
+        freeze_backbone=freeze_backbone,
+        tune_rpn=False,
+        pretrained=True
+    )
     model.to(device)
     
-    params = [p for p in model.parameters() if p.requires_grad]
-    optimizer = torch.optim.AdamW(params) # TODO: Hyperparams
+    # model parameter groups
+    params = []
+    lr = 1e-3
+    
+    if not freeze_backbone:
+        # reduce LR for backbone
+        backbone_params = {"params": [p for n, p in model.backbone.named_parameters() if p.requires_grad], "lr": lr / 10}
+        params.append(backbone_params)
+
+    # increase LR for new layers
+    head_params = {"params": [p for n, p in model.roi_heads.parameters() if p.requires_grad], "lr": lr}
+    params.append(head_params)
+    
+    optimizer = torch.optim.AdamW(params, lr=lr, weight_decay=1e-4)
 
     os.makedirs('models', exist_ok=True)
     
     # Training loop
-    num_epochs = 100
+    num_epochs = 10
     for epoch in range(num_epochs):
         loss = train_one_epoch(model, optimizer, train_loader, epoch, device)
         print(f"Epoch {epoch+1}/{num_epochs}, Loss: {loss:.4f}")
