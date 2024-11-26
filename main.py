@@ -76,7 +76,6 @@ class SportsballDataset(Dataset):
 
 def get_transform(train):
     if train:
-        # TODO: Motion blur
         transform = A.Compose([
             A.RandomSizedBBoxSafeCrop(width=800, height=800),
             A.HorizontalFlip(p=0.5),

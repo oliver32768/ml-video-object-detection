@@ -14,7 +14,7 @@ class DatasetProcessor:
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
         if custom_weights is not None:
-            print(f'Loading FasterRCNN v2 with custom weights: {os.fsdecode(custom_weights)}')
+            print(f'Loading FasterRCNN with custom weights: {os.fsdecode(custom_weights)}')
             self.model = fasterrcnn_resnet50_fpn(weights=None)
 
             in_features = self.model.roi_heads.box_predictor.cls_score.in_features
