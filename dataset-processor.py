@@ -70,7 +70,7 @@ class DatasetProcessor:
 
         return detections
 
-    def process_video(self, video_path):
+    def process_video(self, video_path, nth_frame=1):
         video_name = Path(video_path).stem
 
         cap = cv2.VideoCapture(video_path)
@@ -78,11 +78,15 @@ class DatasetProcessor:
         frame_idx = 0
 
         with torch.no_grad():
-            with tqdm(total=total_frames, desc=f"Processing {video_name}") as pbar:
+            with tqdm(total=total_frames // nth_frame, desc=f"Processing {video_name}") as pbar:
                 while cap.isOpened():
                     ret, frame = cap.read()
                     if not ret:
                         break
+                    if frame_idx % nth_frame != 0:
+                        frame_idx += 1
+                        continue
+
                     frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
                     H, W = frame_rgb.shape[:2]
                     
@@ -115,13 +119,13 @@ class DatasetProcessor:
         cv2.imwrite(vis_path, frame)
         
 
-    def process_video_folder(self):
+    def process_video_folder(self, nth):
         video_paths = list(Path(self.video_dir).glob('*.mp4'))
 
         for video_path in video_paths:
             print(f"\nProcessing video: {video_path.name}")
 
-            self.process_video(str(video_path))
+            self.process_video(str(video_path), nth)
 
         data = {
             "images": datasetprocessor.images,
@@ -137,6 +141,7 @@ def parse_cli_args():
     parser.add_argument("--video-dir", help="Path to directory containing source videos to be labelled by model", required=True)
     parser.add_argument("--dataset-dir", help="Path to directory where labels, images and visualisations should be saved", required=True)
     parser.add_argument("--weights", help="Path to model weights (FasterRCNN v1). Defaults to downloading pretrained weights")
+    parser.add_argument("--nth-frame", help="Process every nth frame only (specify n as argument)", type=int)
     return parser.parse_args()
 
 if __name__ == "__main__":
@@ -144,6 +149,7 @@ if __name__ == "__main__":
     video_dir = args.video_dir
     dataset_dir = args.dataset_dir
     weights = args.weights
+    nth = args.nth_frame if args.nth_frame is not None else 1
     
     datasetprocessor = DatasetProcessor(video_dir, dataset_dir, weights)
-    datasetprocessor.process_video_folder()
+    datasetprocessor.process_video_folder(nth)

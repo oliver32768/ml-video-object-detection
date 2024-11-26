@@ -10,6 +10,7 @@ import torchvision.transforms.functional as F
 import albumentations as A
 from albumentations.pytorch import ToTensorV2
 import numpy as np
+import argparse
 
 class SportsballDataset(Dataset):
     def __init__(self, json_file, img_dir, transform=None):
@@ -92,10 +93,14 @@ def get_transform(train):
         ], bbox_params=A.BboxParams(format='pascal_voc', label_fields=['labels']))
     return transform
 
-def get_model(num_classes, freeze_backbone=True, tune_rpn=False, pretrained=True):
-    # pretrained fasterrcnn (TODO: loading from ckpt)
-    weights = FasterRCNN_ResNet50_FPN_Weights.DEFAULT if pretrained else None
-    model = fasterrcnn_resnet50_fpn(weights=weights)
+def get_model(num_classes, freeze_backbone, tune_rpn, weights):
+    # pretrained fasterrcnn
+    if weights is None:
+        model = fasterrcnn_resnet50_fpn(weights=FasterRCNN_ResNet50_FPN_Weights.DEFAULT)
+    else:
+        ckpt = torch.load(weights)
+        model = fasterrcnn_resnet50_fpn(weights=None)
+        model.load_state_dict(ckpt['model_state_dict'])
     
     # freeze resnet backbone
     if freeze_backbone:
@@ -141,14 +146,39 @@ def train_one_epoch(model, optimizer, data_loader, epoch, device):
         
     return total_loss / len(data_loader)
 
+def save_ckpt(epoch, model_state, optimizer_state, loss, name):
+    torch.save({
+        'epoch': epoch,
+        'model_state_dict': model_state,
+        'optimizer_state_dict': optimizer_state,
+        'loss': loss,
+    }, os.path.join('models', f'{name}.pth'))
+
+def parse_cli_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--annotations-json", help="Path to annotations.json containing image IDs, category IDs and image bbox labels", required=True)
+    parser.add_argument("--img-dir", help="Path to directory containing input images", required=True)
+    parser.add_argument("--tag", help="Identifier to append to the names of checkpoints saved", required=True)
+    parser.add_argument("--weights", help="Path to model weights (FasterRCNN v1). Defaults to downloading pretrained weights")
+    parser.add_argument("--no-transform", action="store_true")
+    parser.add_argument("--num-epochs", type=int)
+    return parser.parse_args()
+
 def main():
+    args = parse_cli_args()
+
     # Initialisation
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
+    if args.no_transform:
+        transforms = None
+    else:
+        transforms = get_transform(train=True)
     
     train_dataset = SportsballDataset(
-        json_file=os.path.join('ball_detection_dataset', 'train', '0', 'annotations.json'),
-        img_dir=os.path.join('ball_detection_dataset', 'train', '0', 'images'),
-        transform=get_transform(train=True)
+        json_file=args.annotations_json,
+        img_dir=args.img_dir,
+        transform=transforms
     )
     
     train_loader = DataLoader(
@@ -164,7 +194,7 @@ def main():
         num_classes=num_classes,
         freeze_backbone=freeze_backbone,
         tune_rpn=False,
-        pretrained=True
+        weights=args.weights
     )
     model.to(device)
     
@@ -178,7 +208,7 @@ def main():
         params.append(backbone_params)
 
     # increase LR for new layers
-    head_params = {"params": [p for n, p in model.roi_heads.parameters() if p.requires_grad], "lr": lr}
+    head_params = {"params": [p for n, p in model.roi_heads.named_parameters() if p.requires_grad], "lr": lr}
     params.append(head_params)
     
     optimizer = torch.optim.AdamW(params, lr=lr, weight_decay=1e-4)
@@ -186,17 +216,18 @@ def main():
     os.makedirs('models', exist_ok=True)
     
     # Training loop
-    num_epochs = 10
+    min_loss = 1e+10
+    num_epochs = args.num_epochs
     for epoch in range(num_epochs):
         loss = train_one_epoch(model, optimizer, train_loader, epoch, device)
         print(f"Epoch {epoch+1}/{num_epochs}, Loss: {loss:.4f}")
         
-        torch.save({
-            'epoch': epoch,
-            'model_state_dict': model.state_dict(),
-            'optimizer_state_dict': optimizer.state_dict(),
-            'loss': loss,
-        }, os.path.join('models', f'checkpoint_epoch_{epoch+1}-v1.pth'))
+        if loss < min_loss:
+            # deliberately not overwriting last if it's the best epoch
+            save_ckpt(epoch, model.state_dict(), optimizer.state_dict(), loss, f'checkpoint_best-{args.tag}')
+            min_loss = loss
+        else:
+            save_ckpt(epoch, model.state_dict(), optimizer.state_dict(), loss, f'checkpoint_last-{args.tag}')
 
 if __name__ == "__main__":
     main()
