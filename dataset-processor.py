@@ -90,7 +90,7 @@ class DatasetProcessor:
                     frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
                     H, W = frame_rgb.shape[:2]
                     
-                    detections = self.process_frame(frame_rgb)
+                    detections = self.process_frame(frame_rgb) # possible bug: i use frame_rgb here but not in save_frame, suggesting this one is in the wrong color space
                     
                     if len(detections) > 0:
                         frame_filename = f"{video_name}-{frame_idx:06d}.jpg"
