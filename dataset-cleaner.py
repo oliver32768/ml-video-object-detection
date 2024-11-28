@@ -145,7 +145,9 @@ def merge_datasets(prev_annotations, new_annotations, prev_dataset_dir, input_da
     print(f'Copying all labelled images from original dataset not appearing in new, cleaned dataset into {output_dataset_dir}')
     for img in prev_annotations['images']:
         img_name = img['file_name']
+        
         if img_name not in cleaned_img_names:
+            print(f'Image {img_name} appears in the old dataset but not in the new one')
             # copy all labelled images from the old dataset which did not appear in the current dataset
             copy_img(prev_dataset_dir, output_dataset_dir, img_name)
 

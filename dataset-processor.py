@@ -87,14 +87,13 @@ class DatasetProcessor:
                         frame_idx += 1
                         continue
 
-                    frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-                    H, W = frame_rgb.shape[:2]
+                    H, W = frame.shape[:2]
                     
-                    detections = self.process_frame(frame_rgb) # possible bug: i use frame_rgb here but not in save_frame, suggesting this one is in the wrong color space
+                    detections = self.process_frame(frame)
                     
                     if len(detections) > 0:
                         frame_filename = f"{video_name}-{frame_idx:06d}.jpg"
-                        self.save_frame(frame, frame_filename, detections)
+                        self.save_frame(frame, frame_filename)
                         self.images.append({
                             'id': self.img_id,
                             'file_name': frame_filename,
@@ -108,16 +107,9 @@ class DatasetProcessor:
         
         cap.release()
 
-    def save_frame(self, frame, frame_filename, detections):
+    def save_frame(self, frame, frame_filename):
         frame_path = os.path.join(self.images_dir, frame_filename)
-        cv2.imwrite(frame_path, frame)
-
-        vis_path = os.path.join(self.vis_dir, frame_filename)
-        for detect in detections:
-            x1, y1, x2, y2 = map(int, detect['bbox'])
-            cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
-        cv2.imwrite(vis_path, frame)
-        
+        cv2.imwrite(frame_path, frame)        
 
     def process_video_folder(self, nth):
         video_paths = list(Path(self.video_dir).glob('*.mp4'))
