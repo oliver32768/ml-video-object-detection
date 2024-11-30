@@ -13,7 +13,7 @@ git clone https://github.com/oliver32768/ml-video-object-detection.git
 cd ml-video-object-detection
 ```
 
-2. Download Sports-1M dataset JSON at `https://cs.stanford.edu/people/karpathy/deepvideo/sports1m_json.zip, and extract to project directory
+2. Download Sports-1M dataset JSON at `https://cs.stanford.edu/people/karpathy/deepvideo/sports1m_json.zip`, and extract to project directory
 
 3. Create and activate virtual environment:
 
