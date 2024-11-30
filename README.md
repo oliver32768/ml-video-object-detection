@@ -6,7 +6,7 @@ Coding assignment with the objective of automatically generating pseudo-labels o
 
 ## Examples
 
-(Detections are visualised in purple bounding boxes)
+**Note**: Detections are visualised in purple bounding boxes, and only frames containing a non-zero amount of detections are rendered
 
 1. First iteration - 485 frames containing detections
 
