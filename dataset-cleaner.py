@@ -8,12 +8,6 @@ def compute_iou(bbox_a, bbox_b):
     x1_a, y1_a, x2_a, y2_a = bbox_a
     x1_b, y1_b, x2_b, y2_b = bbox_b
     
-    # normalise coordinates since FasterRCNN doesn't guarantee spatial order of (x1,y1) vs. (x2,y2)
-    x1_a, x2_a = min(x1_a, x2_a), max(x1_a, x2_a)
-    y1_a, y2_a = min(y1_a, y2_a), max(y1_a, y2_a)
-    x1_b, x2_b = min(x1_b, x2_b), max(x1_b, x2_b)
-    y1_b, y2_b = min(y1_b, y2_b), max(y1_b, y2_b)
-    
     # intersection area
     inter_x1, inter_x2 = max(x1_a, x1_b), min(x2_a, x2_b)
     inter_y1, inter_y2 = max(y1_a, y1_b), min(y2_a, y2_b)

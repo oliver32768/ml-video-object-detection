@@ -2,6 +2,7 @@ import argparse
 import os
 import json
 import cv2
+from tqdm import tqdm
 
 def get_id_to_annotation_mapping(annotations):
     id_to_anns = dict()
@@ -14,7 +15,7 @@ def get_id_to_annotation_mapping(annotations):
 
 def new_vid_handle(vis_dir, vid_name, H, W):
     vid_path = os.path.join(vis_dir, 'videos', f'{vid_name}.mp4')
-    print(f'Creating new video writer for {vid_path}')
+    print(f'\nCreating new video writer for {vid_path}')
 
     fourcc = cv2.VideoWriter_fourcc(*'mp4v')
     video_writer = cv2.VideoWriter(vid_path, fourcc, 30, (W, H))
@@ -38,40 +39,38 @@ def gen_visualisations(dataset_dir):
 
     cur_vid_name = None
 
-    for img_entry in annotations['images']:
-        img_name = img_entry['file_name']
-        print(f'Processing {img_name}')
-        
-        vid_name = img_name.split('-')[0]
+    with tqdm(annotations['images'], unit="img") as tqdm_imgs:
+        for img_entry in tqdm_imgs:
+            img_name = img_entry['file_name']
+            tqdm_imgs.set_description(f"Image: {img_name}")
+            
+            vid_name = img_name.split('-')[0]
 
-        img_path = os.path.join(images_dir, img_name)
-        vis_path = os.path.join(vis_dir, img_name)
+            img_path = os.path.join(images_dir, img_name)
+            vis_path = os.path.join(vis_dir, img_name)
 
-        img_id = img_entry['id']
+            img_id = img_entry['id']
 
-        frame = cv2.imread(img_path)
+            frame = cv2.imread(img_path)
 
-        if vid_name != cur_vid_name: # doing this down here so I can use frame dimensions for video writer
-            if cur_vid_name is None:
-                # start creating new video
+            if vid_name != cur_vid_name: # Doing this down here so I can use frame dimensions for video writer
+                if cur_vid_name is not None:
+                    # Write video to visualisations/videos/[cur_vid_name].mp4
+                    video_writer.release()
+                    print(f"\nCreated video: {vid_path}")
+                # Start new video 
                 H, W, _ = frame.shape
                 video_writer, vid_path = new_vid_handle(vis_dir, vid_name, H, W)
                 cur_vid_name = vid_name
-            else:
-                # write video to visualisations/videos/[cur_vid_name].mp4
-                video_writer.release()
-                print(f"Created video: {vid_path}")
-                video_writer, vid_path = new_vid_handle(vis_dir, vid_name, H, W)
-                cur_vid_name = vid_name
 
-        img_annotations = id_to_anns[img_id]
+            img_annotations = id_to_anns[img_id]
 
-        for ann in img_annotations:
-            x1, y1, x2, y2 = map(int, ann['bbox'])
-            cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
-        
-        cv2.imwrite(vis_path, frame)
-        video_writer.write(frame)
+            for ann in img_annotations:
+                x1, y1, x2, y2 = map(int, ann['bbox'])
+                cv2.rectangle(frame, (x1, y1), (x2, y2), (255, 0, 255), 2)
+            
+            cv2.imwrite(vis_path, frame) # Save each frame for easier debugging
+            video_writer.write(frame)
 
 def parse_cli_args():
     parser = argparse.ArgumentParser()

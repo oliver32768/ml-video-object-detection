@@ -3,6 +3,7 @@ import json
 import torch
 import os
 from pathlib import Path
+import torchvision.transforms as transforms
 from torchvision.transforms import functional as F
 from torchvision.models.detection import fasterrcnn_resnet50_fpn, FasterRCNN_ResNet50_FPN_Weights
 from torchvision.models.detection.faster_rcnn import FastRCNNPredictor
@@ -34,6 +35,11 @@ class DatasetProcessor:
 
             self.ball_class_ids = [37] # Have to use the COCO index
         
+        self.transform = transforms.Compose([
+            transforms.ToTensor(),
+            transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+        ])
+
         self.confidence_threshold = 0.7
 
         self.images = []
@@ -45,10 +51,8 @@ class DatasetProcessor:
         self.video_dir = video_dir
         self.dataset_dir = dataset_dir
         self.images_dir = os.path.join(self.dataset_dir, 'images')
-        self.vis_dir = os.path.join(self.dataset_dir, 'visualisations')
         os.makedirs(self.dataset_dir, exist_ok=True)
         os.makedirs(self.images_dir, exist_ok=True)
-        os.makedirs(self.vis_dir, exist_ok=True)
         print(f'Results will be saved to {self.dataset_dir}')
 
     def process_frame(self, frame):
@@ -88,8 +92,9 @@ class DatasetProcessor:
                         continue
 
                     H, W = frame.shape[:2]
+                    frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
                     
-                    detections = self.process_frame(frame)
+                    detections = self.process_frame(frame_rgb)
                     
                     if len(detections) > 0:
                         frame_filename = f"{video_name}-{frame_idx:06d}.jpg"
@@ -131,7 +136,7 @@ class DatasetProcessor:
 def parse_cli_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("--video-dir", help="Path to directory containing source videos to be labelled by model", required=True)
-    parser.add_argument("--dataset-dir", help="Path to directory where labels, images and visualisations should be saved", required=True)
+    parser.add_argument("--dataset-dir", help="Path to directory where labels and images should be saved", required=True)
     parser.add_argument("--weights", help="Path to model weights (FasterRCNN v1). Defaults to downloading pretrained weights")
     parser.add_argument("--nth-frame", help="Process every nth frame only (specify n as argument)", type=int)
     return parser.parse_args()

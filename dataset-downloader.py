@@ -3,6 +3,7 @@ import csv
 import json
 import glob
 import yt_dlp
+import argparse
 
 def delete_temp_files(temp_files_glob):
     for temp_file in temp_files_glob:
@@ -70,18 +71,20 @@ def parse_and_download(input_path, output_path, target_labels, num_videos, max_l
                 dl_success = download_video(url, os.path.join(output_path, output_file))
                 num_downloaded += dl_success
 
+def parse_cli_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--target-labels-csv", help="Path to CSV containing Sports-1M [label-idx],[label-name] pairs; restricts videos being downloaded", required=True)
+    parser.add_argument("--sports-dataset-json", help="Path to Sports-1M JSON from which videos should be downloaded", required=True)
+    parser.add_argument("--output-path", help="Path to directory to save videos to", required=True)
+    return parser.parse_args()
+
 def main():
-    target_labels = get_label_indices('relevant-labels.csv')
+    args = parse_cli_args()
+
+    target_labels = get_label_indices(args.target_labels_csv)
     print(f'Target labels: {target_labels}')
 
-    train_input_path = os.path.join(os.getcwd(), 'sports-1m-dataset', 'sports1m_train.json')
-    train_output_path = os.path.join(os.getcwd(), 'videos', 'train')
-
-    val_input_path = os.path.join(os.getcwd(), 'sports-1m-dataset', 'sports1m_test.json')
-    val_output_path = os.path.join(os.getcwd(), 'videos', 'val')
-
-    parse_and_download(train_input_path, train_output_path, target_labels, num_videos=10, max_length=30, min_height=720)
-    parse_and_download(val_input_path, val_output_path, target_labels, num_videos=2, max_length=30, min_height=720)
+    parse_and_download(args.sports_dataset_json, args.output_path, target_labels, num_videos=10, max_length=30, min_height=720)
 
 if __name__ == '__main__':
     main()
