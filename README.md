@@ -102,7 +102,8 @@ This project implements a scheme for generating pseudo-labels of sports-ball bou
 
 1. I want to intentionally overfit the model to visual characteristics of the sports-balls in the dataset so that it can increase its confidence of ball presence for frames marked as false negatives in previous iterations. Over-fitting is bad in most contexts, but given that our task is to automate pseudo-labelling of a known dataset, it can be beneficial to sacrifice generalization for faster convergence.
 2. The strict confidence threshold means each labelled video has very few to no false positives; any false positives are damaging to this loop as the model reinforces these errors and eventually collapses
-3. Given this, I additionally implemented a step in each iteration that removes implausible bounding boxes using heuristics. This can be improved; see below.
+
+Given this, I additionally implemented a step in each iteration that removes implausible bounding boxes using heuristics. This can be improved; see below.
 
 **Improvements**:
 
