@@ -105,7 +105,7 @@ This project implements a scheme for generating pseudo-labels of sports-ball bou
 
 Given this, I additionally implemented a step in each iteration that removes implausible bounding boxes using heuristics. This can be improved; see below.
 
-**Evaluation**: For each training epoch, model performance is validated against a subset of the pseudo-labelled dataset by computing precision, recall, F1 score and the average IoU of predicted bounding boxes. Note that these statistics are relevant to the pseudo-labels; as these are imperfect, most of the productive evaluation comes from running `dataset-visualisations.py` and qualitatively evaluating predicted bounding boxes.
+**Evaluation**: For each training epoch, model performance is validated against a subset of the pseudo-labelled dataset by computing precision, recall, F1 score and the average IoU of predicted bounding boxes. Note that these statistics are relative to the pseudo-labels; as these are imperfect, most of the productive evaluation comes from running `dataset-visualisations.py` and qualitatively evaluating predicted bounding boxes.
 
 **Improvements**:
 
