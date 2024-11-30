@@ -4,6 +4,22 @@ Coding assignment with the objective of automatically generating pseudo-labels o
 
 (Tested on Python 3.12.4)
 
+## Examples
+
+(Detections are visualised in purple bounding boxes)
+
+1. First iteration - 485 frames containing detections
+
+
+https://github.com/user-attachments/assets/0bbebe7b-2e3b-43f2-ae13-0fdc461c6a90
+
+
+2. Second iteration - 680 frames containing detections
+
+
+https://github.com/user-attachments/assets/1d286f8c-8732-4582-a364-d3f3fcba074b
+
+
 ## Setup
 
 1. Clone repo:
