@@ -31,6 +31,7 @@ class DatasetProcessor:
             print(f'Loading FasterRCNN with custom weights: {os.fsdecode(custom_weights)}')
             self.model = fasterrcnn_resnet50_fpn(weights=None)
 
+            # Replace head to match architecture used during finetuning
             in_features = self.model.roi_heads.box_predictor.cls_score.in_features
             num_classes = 2 # Background + 1 class
             self.model.roi_heads.box_predictor = FastRCNNPredictor(in_features, num_classes)
@@ -40,19 +41,17 @@ class DatasetProcessor:
             self.model = self.model.to(self.device)
             self.model.eval()
 
-            self.ball_class_ids = [1] # I change the index to just be 1 during finetuning
+            # ID is 1 after finetuning
+            self.ball_class_ids = [1] 
         else:
             print(f'Loading FasterRCNN v1 with official PyTorch pre-trained weights')
             self.model = fasterrcnn_resnet50_fpn(weights=FasterRCNN_ResNet50_FPN_Weights.DEFAULT).to(self.device)
             self.model.eval()
 
-            self.ball_class_ids = [37] # Have to use the COCO index
-        
-        self.transform = transforms.Compose([
-            transforms.ToTensor(),
-            transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
-        ])
+            # COCO ID for sports-ball is 37
+            self.ball_class_ids = [37]
 
+        # See README for discussion on this strict threshold
         self.confidence_threshold = 0.7
 
         self.images = []
@@ -88,6 +87,7 @@ class DatasetProcessor:
         return detections
 
     def process_video(self, video_path, nth_frame=1):
+        # Iterate over all frames for a given video and only save frame-annotation pairs if there is a non-zero number of detections
         video_name = Path(video_path).stem
 
         cap = cv2.VideoCapture(video_path)

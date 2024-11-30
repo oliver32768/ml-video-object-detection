@@ -40,6 +40,9 @@ def compute_iou(bbox_a, bbox_b):
     return inter_area / union_area
 
 def get_id_to_annotation_mapping(annotations):
+    # Create image_id to annotations mapping
+    # {0: [{image_id, bbox, category_id}, ...], 1: ...}
+    # i.e. id -> list of annotation dictionaries (each containing one bounding box)
     id_to_anns = dict()
     for ann in annotations['annotations']:
         img_id = ann['image_id']
@@ -49,6 +52,7 @@ def get_id_to_annotation_mapping(annotations):
     return id_to_anns
 
 def prune_overlapping_bounding_boxes(annotations):
+    # For any bounding boxes which are spatially overlapping in the same frame, only retain the largest one
     cleaned_annotations = []
     
     id_to_anns = get_id_to_annotation_mapping(annotations) # {0: [{image_id, bbox, category_id}, ...], 1: ...}
@@ -90,6 +94,9 @@ def prune_overlapping_bounding_boxes(annotations):
     return cleaned_annotations
 
 def prune_narrow_bounding_boxes(annotations):
+    # For any bounding boxes containing implausible bounding boxes, remove them
+    # This would be more effective were we using a temporally aware model which ~retains BBOX dimensions during partial occlusion
+
     cleaned_annotations = []
     for annotation in annotations['annotations']:
         x1, y1, x2, y2 = annotation['bbox']
@@ -125,9 +132,11 @@ def copy_img(src_dataset_dir, dest_dataset_dir, img_name):
     shutil.copy(img_path, os.path.join(dest_dataset_dir, 'images', img_name))
 
 def copy_img_annotation_entries(annotations, merged_img_name, merged_images_list, merged_annotations_list, id_to_anns, idx):
+    # Copy images and their respective annotations from the parent dataset (see docstring), iff they are not present* in the cleaned dataset
+    # *i.e. no valid detections remained for that frame
+
     for prev_img in annotations['images']:
         if prev_img['file_name'] == merged_img_name:
-            # then copy over that images[] entry and its respective (by id) annotations[] entries into a new dictionary. use idx as img id
             merged_img_entry = prev_img.copy()
             merged_img_entry['id'] = idx
             merged_images_list.append(merged_img_entry)
@@ -138,6 +147,8 @@ def copy_img_annotation_entries(annotations, merged_img_name, merged_images_list
                 merged_annotations_list.append(merged_annotations_entry)
 
 def merge_datasets(prev_annotations, new_annotations, prev_dataset_dir, input_dataset_dir, output_dataset_dir):
+    # Merge the cleaned dataset and parent dataset into a new one
+
     os.makedirs(os.path.join(output_dataset_dir, 'images'), exist_ok=True)
     os.makedirs(os.path.join(output_dataset_dir, 'visualisations'), exist_ok=True)
 

@@ -36,7 +36,9 @@ class SportsballDataset(Dataset):
         self.transform = transform
         
         # Create image_id to annotations mapping
-        self.img_to_anns = {} # {0: [{image_id, bbox, category_id}, ...], 1: ...}
+        # {0: [{image_id, bbox, category_id}, ...], 1: ...}
+        # i.e. id -> list of annotation dictionaries (each containing one bounding box)
+        self.img_to_anns = {} 
         for ann in self.coco['annotations']:
             img_id = ann['image_id']
             if img_id not in self.img_to_anns:
@@ -132,6 +134,8 @@ def get_model(num_classes, freeze_backbone, tune_rpn, weights):
     return model
 
 def compute_metrics(all_gt_boxes, all_pred_boxes, iou_threshold):
+    # compute precision, recall, F1 and mean IoU
+    # using precision in lieu of mAP as iterating over IoU thresholds is time consuming
     tp = fp = fn = 0
     iou_scores = []
     
@@ -182,7 +186,7 @@ def validation(model, data_loader, epoch, device):
                     all_gt_boxes.append(gt_boxes)
                     all_pred_boxes.append(pred_boxes)
 
-                model.train() # you have to do this unfortunately
+                model.train() # PyTorch's FasterRCNN v1 callable only returns a loss dict in train mode unfortunately
                 loss_dict = model(images, targets)
                 model.eval()
 

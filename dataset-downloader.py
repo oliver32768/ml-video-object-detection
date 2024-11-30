@@ -51,6 +51,9 @@ def get_label_indices(csv_file):
     return labels
 
 def parse_and_download(input_path, output_path, target_labels, num_videos, max_length, min_height):
+    # Iterate over Sports-1M JSON and download videos satisfying resolution, length and label crtieria
+    # Stops at num_videos downloads
+
     num_downloaded = 0
 
     if not os.path.exists(output_path):

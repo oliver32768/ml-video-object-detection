@@ -16,6 +16,10 @@ import cv2
 from tqdm import tqdm
 
 def get_id_to_annotation_mapping(annotations):
+    # Create image_id to annotations mapping
+    # {0: [{image_id, bbox, category_id}, ...], 1: ...}
+    # i.e. id -> list of annotation dictionaries (each containing one bounding box)
+
     id_to_anns = dict()
     for ann in annotations['annotations']:
         img_id = ann['image_id']
@@ -25,6 +29,8 @@ def get_id_to_annotation_mapping(annotations):
     return id_to_anns
 
 def new_vid_handle(vis_dir, vid_name, H, W):
+    # Start writing to a new video file
+
     vid_path = os.path.join(vis_dir, 'videos', f'{vid_name}.mp4')
     print(f'\nCreating new video writer for {vid_path}')
 
@@ -34,6 +40,8 @@ def new_vid_handle(vis_dir, vid_name, H, W):
     return video_writer, vid_path
 
 def gen_visualisations(dataset_dir):
+    # Iterate over dataset and save frames with their respective bounding boxes overlaid into JPEGs and MP4s
+
     annotations_json = os.path.join(dataset_dir, 'annotations.json')
     
     images_dir = os.path.join(dataset_dir, 'images')
@@ -64,12 +72,16 @@ def gen_visualisations(dataset_dir):
 
             frame = cv2.imread(img_path)
 
-            if vid_name != cur_vid_name: # Doing this down here so I can use frame dimensions for video writer
-                if cur_vid_name is not None:
-                    # Write video to visualisations/videos/[cur_vid_name].mp4
+            if vid_name != cur_vid_name:
+                # annotations.json contains numerically ordered frames as {vid}-{frame}.jpg
+                # if {vid} changes, we should write the video (if it exists) and begin a new one
+
+                # if cur_vid_name is None, this is the first video, so there is nothing yet to write
+                if cur_vid_name is not None: 
                     video_writer.release()
                     print(f"\nCreated video: {vid_path}")
-                # Start new video 
+                
+                # Get new video writer
                 H, W, _ = frame.shape
                 video_writer, vid_path = new_vid_handle(vis_dir, vid_name, H, W)
                 cur_vid_name = vid_name
@@ -77,10 +89,12 @@ def gen_visualisations(dataset_dir):
             img_annotations = id_to_anns[img_id]
 
             for ann in img_annotations:
+                # Overlay bounding boxes
                 x1, y1, x2, y2 = map(int, ann['bbox'])
                 cv2.rectangle(frame, (x1, y1), (x2, y2), (255, 0, 255), 2)
             
-            cv2.imwrite(vis_path, frame) # Save each frame for easier debugging
+            # Save each frame for easier debugging
+            cv2.imwrite(vis_path, frame) 
             video_writer.write(frame)
 
 def parse_cli_args():
