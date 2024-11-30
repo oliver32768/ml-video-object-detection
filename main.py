@@ -1,3 +1,17 @@
+"""
+Fine-tune a FasterRCNN v1 model on the pseudo-labelled dataset
+
+Usage:
+    python main.py [options]
+
+Options:
+    --dataset-dir <string>  Path to directory containing 'images' folder and 'annotations.json'
+    --tag <string>          Identifier to append to the names of checkpoints saved
+    --num-epochs <int>      Number of epochs to train for
+    --weights <string>      (Optional) Path to FasterRCNN v1 checkpoint. If left unspecified, defaults to downloading pretrained weights
+    --no-transform          (Optional) Disables data augmentations
+"""
+
 import json
 import os
 import cv2
@@ -226,9 +240,9 @@ def parse_cli_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("--dataset-dir", help="Path to directory containing images/ folder and annotations.json", required=True)
     parser.add_argument("--tag", help="Identifier to append to the names of checkpoints saved", required=True)
+    parser.add_argument("--num-epochs", type=int, required=True)
     parser.add_argument("--weights", help="Path to model weights (FasterRCNN v1). Defaults to downloading pretrained weights")
     parser.add_argument("--no-transform", action="store_true")
-    parser.add_argument("--num-epochs", type=int)
     return parser.parse_args()
 
 def main():

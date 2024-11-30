@@ -1,3 +1,18 @@
+"""
+Cleans the dataset produced by the FasterRCNN v1 model (see: dataset-processor.py) using heuristics (e.g. overlaps, bounding box aspect ratio)
+
+Additionally, merges labels and images from a 'parent' dataset which are not present in the resulting, cleaned, dataset.
+The parent dataset should be the cleaned dataset from the previous iteration.
+
+Usage:
+    python dataset-cleaner.py [options]
+
+Options:
+    --output-dataset-dir <string>  Path to save resulting dataset to (images/, annotations.json)
+    --input-dataset-dir <string>   Path to dataset which should be cleaned (i.e. from most recent iteration of dataset-processor.py)
+    --prev-dataset-dir <string>    Path to 'parent' dataset which should fill the cleaned dataset where there were no valid detections
+"""
+
 import argparse
 import json
 import os

@@ -1,3 +1,16 @@
+"""
+Use a FasterRCNN v1 model to generate sports-ball bounding box labels (PASCAL VOC) for a set of videos
+
+Usage:
+    python dataset-processor.py [options]
+
+Options:
+    --video-dir <string>    Path to directory containing MP4 videos to be labelled by model
+    --dataset-dir <string>  Path to directory where labels and images should be saved
+    --weights <string>      (Optional) Path to FasterRCNN v1 checkpoint. If left unspecified, defaults to downloading pretrained weights
+    --nth-frame <int>       (Optional) Process every nth frame only. If left unspecified, every frame is processed
+"""
+
 import cv2
 import json
 import torch

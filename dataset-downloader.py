@@ -1,3 +1,15 @@
+"""
+Downloads videos from the Sports-1M JSON according to a specified set of label indices
+
+Usage:
+    python dataset-downloader.py [options]
+
+Options:
+    --target-labels-csv <string>    Path to CSV containing [label-idx],[label-name] entries for Sports-1M labels; restricts videos being downloaded to these labels
+    --sports-dataset-json <string>  Path to Sports-1M JSON from which videos should be downloaded
+    --output-path <string>          Path to directory to save videos to
+"""
+
 import os
 import csv
 import json

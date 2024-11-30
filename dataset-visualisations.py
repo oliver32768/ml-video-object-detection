@@ -1,3 +1,14 @@
+"""
+Generates bounding box visualisations for every frame in an existing dataset (containing images/*.jpg and annotations.json)
+Saves visualisations as individual frames (JPEGs) and videos (MP4s)
+
+Usage:
+    python dataset-visualisations.py [options]
+
+Options:
+    --dataset-dir <string>  Path to dataset containing images/ folder and annotations.json
+"""
+
 import argparse
 import os
 import json
