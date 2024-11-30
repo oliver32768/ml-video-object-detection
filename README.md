@@ -82,7 +82,7 @@ This project implements a scheme for generating pseudo-labels of sports-ball bou
 
 **Model choice**: I chose FasterRCNN v1 as it requires less compute and significantly less training data than a SOTA Transformer based vision model such as Segment Anything (SAM), the latter consideration being crucial given time constraints. YOLO has similar resource and time constraints to FasterRCNN but produced qualitatively worse labels for this task (i.e. more false positives and negatives).
 
-**Labelling Methodology**: I use a strict confidence threshold on bounding box labels to minimize false positives at the expense of more false negatives, and then train the model only on frames containing a nonzero amount of detections. The reasoning for this strems from two key considerations: 
+**Labelling Methodology**: I use a strict confidence threshold on bounding box labels to minimize false positives at the expense of more false negatives, and then train the model only on frames containing a nonzero amount of detections. The reasoning for this stems from two key considerations: 
 
 1. I want to intentionally overfit the model to visual characteristics of the sports-balls in the dataset so that it can increase its confidence of ball presence for frames marked as false negatives in previous iterations. Over-fitting is bad in most contexts, but given that our task is to automate pseudo-labelling of a known dataset, it can be beneficial to sacrifice generalization for faster convergence.
 2. The strict confidence threshold means each labelled video has very few to no false positives; any false positives are damaging to this loop as the model reinforces these errors and eventually collapses
